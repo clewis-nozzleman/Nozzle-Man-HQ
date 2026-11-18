@@ -1,0 +1,9 @@
+{
+  "name": "nozzle-man-hq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private owner dashboard for Nozzle Man Exterior Services",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" }
+}
