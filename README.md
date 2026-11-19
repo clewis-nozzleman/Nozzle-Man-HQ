@@ -1,30 +1,22 @@
-# Nozzle Man HQ — v1
+# Nozzle Man HQ — Scout v2
 
-A small Node.js web app for the private Nozzle Man Exterior Services owner dashboard.
+Private Node.js owner dashboard.
 
-## Features
-- Owner-only password login with signed, HTTP-only session cookie
-- Dashboard sections for overview, sales, marketing, approvals, operations, scheduling, finance, and reports
-- No third-party runtime dependencies
-- Health endpoint at `/health`
+## Scout Sales & Leads
+- Includes 20 initial prospect targets sourced from public directories and company websites.
+- Search and filter prospects; update pipeline statuses; add owner-entered leads; export CSV.
+- Lead records are stored in the browser's localStorage on the device/browser used. They are not yet synced across devices or to Jobber/HubSpot.
+- Fit ratings are initial prioritization estimates, not confirmed buying intent. Verify contacts and vendor processes before outreach.
+- No emails are sent by this version.
 
 ## Required environment variables
-- `OWNER_EMAIL`: login email (defaults to `owner@nozzlemanexteriors.com`)
-- `OWNER_PASSWORD`: strong password, at least 14 characters
-- `SESSION_SECRET`: random secret, at least 32 characters
+- `OWNER_EMAIL` (optional; defaults to owner@nozzlemanexteriors.com)
+- `OWNER_PASSWORD` (14+ characters)
+- `SESSION_SECRET` (32+ characters)
 
-Generate a session secret with: `openssl rand -hex 32`
-
-## Run locally
-```bash
-npm start
-```
-
-## Render deployment
-- Runtime: Node
+## Render
 - Build command: `npm install`
 - Start command: `npm start`
-- Add the three environment variables above in Render before first deployment.
 
-## Important
-This is the initial secure application shell. It does not yet connect to Jobber or HubSpot and does not store CRM, job, quote, invoice, or financial records. The empty metrics are intentional. Integrations and persistent storage will be added in a later release.
+## Next build stages
+AI-assisted live prospect research, persistent server-side lead storage, approval queue, and Jobber integration.
