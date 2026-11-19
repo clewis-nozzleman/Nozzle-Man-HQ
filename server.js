@@ -32,7 +32,7 @@ function authenticated(req) {
   return safeEqual(sign(expires), sig);
 }
 function send(res, status, body, type='text/html; charset=utf-8', headers={}) {
-  res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', 'Referrer-Policy':'same-origin', 'Content-Security-Policy':"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'", ...headers });
+  res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', 'Referrer-Policy':'same-origin', 'Cache-Control':'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma':'no-cache', 'Expires':'0', 'Content-Security-Policy':"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'", ...headers });
   res.end(body);
 }
 function redirect(res, location, headers={}) { res.writeHead(303, { Location: location, ...headers }); res.end(); }
