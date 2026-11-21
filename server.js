@@ -51,7 +51,7 @@ const server = http.createServer(async (req,res) => {
   }
   if (req.method === 'GET' && url.pathname === '/google/connect') {
     if (!authenticated(req)) return redirect(res, '/login');
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://nozzle-man-hq.onrender.com/google/callback';
     if (!clientId || !process.env.GOOGLE_CLIENT_SECRET) return send(res, 503, '<!doctype html><meta name="viewport" content="width=device-width"><h2>Google connection is not configured yet</h2><p>Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Render environment settings, then try again.</p><p><a href="/">Back to HQ</a></p>');
     const state = crypto.randomBytes(32).toString('hex');
@@ -72,7 +72,7 @@ const server = http.createServer(async (req,res) => {
     if (!code) return send(res, 400, 'Missing authorization code', 'text/plain', {'Set-Cookie':clearState});
     try {
       const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://nozzle-man-hq.onrender.com/google/callback';
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:redirectUri,grant_type:'authorization_code'})});
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:(process.env.GOOGLE_CLIENT_SECRET || '').trim(),redirect_uri:redirectUri,grant_type:'authorization_code'})});
       const tokens = await tokenResponse.json();
       if (!tokenResponse.ok) throw new Error(tokens.error_description || tokens.error || 'Google token exchange failed');
       if (!tokens.refresh_token) return send(res, 502, '<h2>Google did not return a refresh token</h2><p>Try again after removing the app access from your Google Account permissions, then reconnect.</p><p><a href="/google/connect">Try again</a></p>', 'text/html; charset=utf-8', {'Set-Cookie':clearState});
