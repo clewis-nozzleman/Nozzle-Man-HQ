@@ -42,6 +42,39 @@ const appPage = `<!doctype html><html lang="en"><head><meta charset="utf-8"><met
 const server = http.createServer(async (req,res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') return send(res,200,JSON.stringify({ok:true,app:'nozzle-man-hq'}),'application/json');
+  if (req.method === 'GET' && url.pathname === '/google/connect') {
+    if (!authenticated(req)) return redirect(res, '/login');
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://nozzle-man-hq.onrender.com/google/callback';
+    if (!clientId || !process.env.GOOGLE_CLIENT_SECRET) return send(res, 503, '<!doctype html><meta name="viewport" content="width=device-width"><h2>Google connection is not configured yet</h2><p>Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Render environment settings, then try again.</p><p><a href="/">Back to HQ</a></p>');
+    const state = crypto.randomBytes(32).toString('hex');
+    const stateSig = sign('google:'+state);
+    const auth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    auth.search = new URLSearchParams({client_id:clientId,redirect_uri:redirectUri,response_type:'code',scope:'https://www.googleapis.com/auth/gmail.send',access_type:'offline',prompt:'consent',include_granted_scopes:'true',state}).toString();
+    return redirect(res, auth.toString(), {'Set-Cookie':`nm_google_state=${state}.${stateSig}; HttpOnly; Secure; SameSite=Lax; Path=/google; Max-Age=600`});
+  }
+  if (req.method === 'GET' && url.pathname === '/google/callback') {
+    if (!authenticated(req)) return redirect(res, '/login');
+    const stateCookie = cookieValue(req, 'nm_google_state');
+    const [savedState, savedSig] = stateCookie.split('.');
+    const incomingState = url.searchParams.get('state') || '';
+    const clearState = 'nm_google_state=; HttpOnly; Secure; SameSite=Lax; Path=/google; Max-Age=0';
+    if (!savedState || !savedSig || !safeEqual(savedState, incomingState) || !safeEqual(savedSig, sign('google:'+savedState))) return send(res, 400, '<h2>Authorization check failed</h2><p>Return to HQ and start the connection again.</p>', 'text/html; charset=utf-8', {'Set-Cookie':clearState});
+    if (url.searchParams.get('error')) return send(res, 400, '<h2>Google authorization was not completed</h2><p>You can close this page and try again from HQ.</p>', 'text/html; charset=utf-8', {'Set-Cookie':clearState});
+    const code = url.searchParams.get('code');
+    if (!code) return send(res, 400, 'Missing authorization code', 'text/plain', {'Set-Cookie':clearState});
+    try {
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://nozzle-man-hq.onrender.com/google/callback';
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:redirectUri,grant_type:'authorization_code'})});
+      const tokens = await tokenResponse.json();
+      if (!tokenResponse.ok) throw new Error(tokens.error_description || tokens.error || 'Google token exchange failed');
+      if (!tokens.refresh_token) return send(res, 502, '<h2>Google did not return a refresh token</h2><p>Try again after removing the app access from your Google Account permissions, then reconnect.</p><p><a href="/google/connect">Try again</a></p>', 'text/html; charset=utf-8', {'Set-Cookie':clearState});
+      const token = String(tokens.refresh_token).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      return send(res, 200, `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Finish Gmail connection</title></head><body style="font:16px system-ui;max-width:680px;margin:48px auto;padding:0 20px"><h1>Google authorization successful</h1><p>One final secure setup step: copy this refresh token into your Render environment variable named <b>GOOGLE_REFRESH_TOKEN</b>. Do not email it or share it in chat. Then redeploy HQ.</p><textarea readonly style="width:100%;min-height:110px;box-sizing:border-box;padding:12px">${token}</textarea><p><button onclick="navigator.clipboard.writeText(document.querySelector('textarea').value)">Copy refresh token</button></p><p>After saving it in Render, delete this browser page from your history if this is a shared device.</p><p><a href="/">Return to Nozzle Man HQ</a></p></body></html>`, 'text/html; charset=utf-8', {'Set-Cookie':clearState,'Referrer-Policy':'no-referrer'});
+    } catch (err) {
+      return send(res, 502, '<h2>Could not finish Google authorization</h2><p>Check the OAuth client settings and try again from HQ.</p>', 'text/html; charset=utf-8', {'Set-Cookie':clearState});
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/login') return send(res,200,loginPage);
   if (req.method === 'POST' && url.pathname === '/login') {
     try { const body = await readBody(req); const okEmail = safeEqual((body.get('email')||'').trim().toLowerCase(), OWNER_EMAIL.toLowerCase()); const okPass = safeEqual(body.get('password')||'', OWNER_PASSWORD); if (!okEmail || !okPass) return send(res,401,loginPage.replace('<form method="post"', '<p class="error">Email or password is incorrect.</p><form method="post"')); const exp = String(Date.now()+12*60*60*1000); const token = exp+'.'+sign(exp); return redirect(res,'/',{'Set-Cookie':`nm_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`}); } catch { return send(res,400,'Bad request'); }
