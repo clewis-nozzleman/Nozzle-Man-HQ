@@ -42,6 +42,13 @@ const appPage = `<!doctype html><html lang="en"><head><meta charset="utf-8"><met
 const server = http.createServer(async (req,res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') return send(res,200,JSON.stringify({ok:true,app:'nozzle-man-hq'}),'application/json');
+  if (req.method === 'GET' && url.pathname === '/google/status') {
+    if (!authenticated(req)) return redirect(res, '/login');
+    const clientId = process.env.GOOGLE_CLIENT_ID || '';
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://nozzle-man-hq.onrender.com/google/callback';
+    const safeId = clientId.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    return send(res, 200, `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Google setup check</title></head><body style="font:16px system-ui;max-width:700px;margin:40px auto;padding:0 20px"><h2>Nozzle Man HQ — Google setup check</h2><p><b>Client ID currently loaded by HQ:</b></p><textarea readonly style="width:100%;min-height:75px;box-sizing:border-box;padding:10px">${safeId || 'MISSING'}</textarea><p><b>Client secret:</b> ${process.env.GOOGLE_CLIENT_SECRET ? 'Present (hidden)' : 'MISSING'}</p><p><b>Redirect URI:</b> ${redirectUri}</p><p>Compare the Client ID above with the Client ID shown in Google Cloud for the Nozzle Man HQ project. Do not share your client secret.</p><p><a href="/">Back to HQ</a></p></body></html>`);
+  }
   if (req.method === 'GET' && url.pathname === '/google/connect') {
     if (!authenticated(req)) return redirect(res, '/login');
     const clientId = process.env.GOOGLE_CLIENT_ID;
